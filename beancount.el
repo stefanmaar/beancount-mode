@@ -605,7 +605,8 @@ will allow to align all numbers."
     (unless (eq indent (current-indentation))
       (if savep (save-excursion (indent-line-to indent))
         (indent-line-to indent)))
-    (beancount-align-number (beancount-number-alignment-column))))
+    (unless (eq this-command 'beancount-tab-dwim)
+      (beancount-align-number (beancount-number-alignment-column)))))
 
 (defun beancount-indent-region (start end)
   "Indent a region automagically. START and END specify the region to indent."
