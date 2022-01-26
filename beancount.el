@@ -446,6 +446,14 @@ With an argument move to the next non cleared transaction."
   "A list of the accounts available in this buffer.")
 (make-variable-buffer-local 'beancount-accounts)
 
+(defvar beancount-kostenstellen nil
+  "A list of the kostenstellen available in this buffer.")
+(make-variable-buffer-local 'beancount-kostenstellen)
+
+(defvar beancount-lnr-prefix nil
+  "A list of the lnr prefixes available in this buffer.")
+(make-variable-buffer-local 'beancount-lnr-prefix)
+
 (defun beancount-completion-at-point ()
   "Return the completion data relevant for the text at point."
   (save-excursion
@@ -453,6 +461,18 @@ With an argument move to the next non cleared transaction."
       (let ((pos (point)))
         (beginning-of-line)
         (cond
+         ;; kostenstelle meta
+         ((beancount-looking-at "^\\s-+\\(kostenstelle:\\)\\s-+\\([\"A-Za-z0-9-_]*\\)" 2 pos) 
+          (message "KOSTENSTELLE")
+          (setq beancount-kostenstellen nil)
+          (list (match-beginning 2) (match-end 2) #'beancount-kostenstelle-completion-table))
+
+         ;; lnr meta
+         ((beancount-looking-at "^\\s-+\\(lnr:\\)\\s-+\\(\"[A-Z0-9-]*\\)" 2 pos) 
+          (message "LNR")
+          (setq beancount-lnr-prefix nil)
+          (list (match-beginning 2) (match-end 2) #'beancount-lnr-completion-table))
+         
          ;; non timestamped directive
          ((beancount-looking-at "[a-z]*" 0 pos)
           (list (match-beginning 0) (match-end 0)
@@ -542,6 +562,34 @@ With an argument move to the next non cleared transaction."
         (setq beancount-accounts
               (sort (beancount-collect beancount-account-regexp 0) #'string<)))
     (complete-with-action action beancount-accounts string pred)))
+
+
+(defun beancount-kostenstelle-completion-table (string pred action)
+  (if (eq action 'metadata) '(metadata (category . beancount-kostenstelle))
+    (if (null beancount-kostenstellen)
+        (setq beancount-kostenstellen
+              (sort (beancount-collect "^\\s-+\\(kostenstelle:\\)\\s-+\\([\"A-Za-z0-9-_]+\\)" 2) #'string<)))
+    (complete-with-action action beancount-kostenstellen string pred)))
+
+
+(defun beancount-lnr-completion-table (string pred action)
+  (if (eq action 'metadata) '(metadata (category . beancount-lnr))
+    (if (null beancount-lnr-prefix)
+        (setq beancount-lnr-prefix
+              (sort (beancount-collect "^\\s-+\\(lnr:\\)\\s-+\"\\([A-Z]+\\)-\\([0-9]+\\)\"" 2) #'string<))
+      (setq beancount-lnr '())
+      (dolist (cur_prefix beancount-lnr-prefix)
+        (setq cur_lnr
+              (sort (beancount-collect (concat "^\\s-+lnr:\\s-+\"" cur_prefix "-\\([0-9]+\\)\"") 1) #'string<))
+        (setq cur_number
+              (+ (string-to-number (car (last cur_lnr))) 1))
+        (setq cur_new_lnr
+              (format "\"%s-%03d\"" cur_prefix cur_number))
+        (setq beancount-lnr (cons cur_new_lnr beancount-lnr))
+        )
+    )
+    (complete-with-action action beancount-lnr string pred)))
+
 
 ;; Default to substring completion for beancount accounts.
 (defconst beancount--completion-overrides
