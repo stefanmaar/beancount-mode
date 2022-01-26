@@ -175,7 +175,7 @@ from the open directive for the relevant account."
 ;;(defconst beancount-account-categories
 ;;  '("Assets" "Liabilities" "Equity" "Income" "Expenses"))
 (defconst beancount-account-categories
-  '("Aktiva" "Verbindlichkeiten" "Eigenkapital" "Ertrag" "Aufwand"))
+  '("Vermögen" "Verbindlichkeiten" "Eigenkapital" "Ertrag" "Aufwand"))
 
 (defconst beancount-tag-chars "[:alnum:]-_/.")
 
@@ -607,7 +607,8 @@ will allow to align all numbers."
     (unless (eq indent (current-indentation))
       (if savep (save-excursion (indent-line-to indent))
         (indent-line-to indent)))
-    (beancount-align-number (beancount-number-alignment-column))))
+    (unless (eq this-command 'beancount-tab-dwim)
+      (beancount-align-number (beancount-number-alignment-column)))))
 
 (defun beancount-indent-region (start end)
   "Indent a region automagically. START and END specify the region to indent."
