@@ -232,7 +232,13 @@ from the open directive for the relevant account."
   (concat "^\\(" beancount-date-regexp "\\) +"
           "\\(?:txn +\\)?"
           "\\(" beancount-flag-regexp "\\) +"
-          "\\(\".*\"\\)"))
+          "\\(\".*\"\\) +"))
+
+(defconst beancount-transaction-withpayee-regexp
+  (concat "^\\(" beancount-date-regexp "\\) +"
+          "\\(" beancount-flag-regexp "\\) +"
+          "\\(\".*\"\\) +"
+          "\\(\".*\"\\) +"))
 
 (defconst beancount-posting-regexp
   (concat "^\\s-+"
@@ -454,6 +460,10 @@ With an argument move to the next non cleared transaction."
   "A list of the lnr prefixes available in this buffer.")
 (make-variable-buffer-local 'beancount-lnr-prefix)
 
+(defvar beancount-payee nil
+  "The payee of the current transaction used for autocomplete.")
+(make-variable-buffer-local 'beancount-payee)
+
 (defun beancount-completion-at-point ()
   "Return the completion data relevant for the text at point."
   (save-excursion
@@ -462,16 +472,32 @@ With an argument move to the next non cleared transaction."
         (beginning-of-line)
         (cond
          ;; kostenstelle meta
-         ((beancount-looking-at "^\\s-+\\(kostenstelle:\\)\\s-+\\([\"A-Za-z0-9-_]*\\)" 2 pos) 
-          (message "KOSTENSTELLE")
+         ((beancount-looking-at "^\\s-+\\(kostenstelle:\\)\\s-+\\([\"A-Za-zÄÖÜäöü0-9-_]*\\)" 2 pos) 
           (setq beancount-kostenstellen nil)
           (list (match-beginning 2) (match-end 2) #'beancount-kostenstelle-completion-table))
 
          ;; lnr meta
          ((beancount-looking-at "^\\s-+\\(lnr:\\)\\s-+\\(\"[A-Z0-9-]*\\)" 2 pos) 
-          (message "LNR")
           (setq beancount-lnr-prefix nil)
           (list (match-beginning 2) (match-end 2) #'beancount-lnr-completion-table))
+
+         ;; transaction narration
+         ((beancount-looking-at (concat "^\\(" beancount-date-regexp "\\) +"
+                                        "\\(" beancount-flag-regexp "\\) +"
+                                        "\\(\"[A-Za-zÄÖÜäöü -_]+\"\\) +"
+                                        "\\(\"[A-Za-zÄÖÜäöü -_]*\\)"
+                                        ) 4 pos)
+          (setq beancount-payee
+                (match-string 3))
+          (list (match-beginning 4) (match-end 4) #'beancount-narration-completion-table))
+
+         
+         ;; transaction payee
+         ((beancount-looking-at (concat "^\\(" beancount-date-regexp "\\) +"
+                                        "\\(" beancount-flag-regexp "\\) +"
+                                        "\\(\"[A-Za-zÄÖÜäöü -_]*\\)") 3 pos)
+          (list (match-beginning 3) (match-end 3) #'beancount-payee-completion-table))
+
          
          ;; non timestamped directive
          ((beancount-looking-at "[a-z]*" 0 pos)
@@ -562,6 +588,27 @@ With an argument move to the next non cleared transaction."
         (setq beancount-accounts
               (sort (beancount-collect beancount-account-regexp 0) #'string<)))
     (complete-with-action action beancount-accounts string pred)))
+
+
+(defun beancount-payee-completion-table (string pred action)
+  (if (eq action 'metadata) '(metadata (category . beancount-kostenstelle))
+    (setq beancount-payee-list
+          (sort (beancount-collect beancount-transaction-withpayee-regexp 3) #'string<))
+    (complete-with-action action beancount-payee-list string pred)))
+
+
+(defun beancount-narration-completion-table (string pred action)
+  (if (eq action 'metadata) '(metadata (category . beancount-kostenstelle))
+    (setq narration-regexp
+          (concat "^" beancount-date-regexp " +"
+                  beancount-flag-regexp " +"
+                  beancount-payee " +"
+                  "\\(\"[A-Za-zÄÖÜäöü -_]*\"\\)"
+                  ))
+    (message narration-regexp)
+    (setq beancount-narration
+          (sort (beancount-collect narration-regexp 1) #'string<))
+    (complete-with-action action beancount-narration string pred)))
 
 
 (defun beancount-kostenstelle-completion-table (string pred action)
