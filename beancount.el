@@ -172,8 +172,10 @@ from the open directive for the relevant account."
     "pushtag")
   "Directive names that can appear at the beginning of a line.")
 
+;;(defconst beancount-account-categories
+;;  '("Assets" "Liabilities" "Equity" "Income" "Expenses"))
 (defconst beancount-account-categories
-  '("Assets" "Liabilities" "Equity" "Income" "Expenses"))
+  '("Vermögen" "Verbindlichkeiten" "Eigenkapital" "Ertrag" "Aufwand"))
 
 (defconst beancount-tag-chars "[:alnum:]-_/.")
 
